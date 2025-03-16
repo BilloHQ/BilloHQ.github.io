@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BilloHQ – Invoice</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @media print {
+            @page { margin: 0; }
+            body * { visibility: hidden; }
+            #invoice, #invoice * { visibility: visible; }
+            #invoice { position: absolute; left: 0; top: 0; width: 100%; }
+        }
+    </style>
+</head>
+<body class="bg-gray-200 flex flex-col items-center p-8">
+
+    <!-- Header -->
+    <header class="bg-white p-4 shadow-md rounded-md flex justify-between w-full max-w-4xl">
+        <h1 class="text-xl font-bold text-blue-600">BilloHQ</h1>
+        <button onclick="printInvoice()" class="bg-blue-600 text-white px-4 py-2 rounded-md shadow-md hover:bg-blue-700">
+            Download Invoice
+        </button>
+    </header>
+
+    <!-- Invoice Inputs -->
+    <div class="bg-white p-6 rounded-md shadow-md w-full max-w-4xl mt-6">
+        <h2 class="text-lg font-semibold mb-4">Invoice Details</h2>
+        
+        <label class="block mb-2">Client Name:</label>
+        <input type="text" id="client-name" class="w-full border p-2 rounded-md mb-4" placeholder="John Doe" oninput="updateInvoice()">
+
+        <label class="block mb-2">Client Address:</label>
+        <textarea id="client-address" class="w-full border p-2 rounded-md mb-4" placeholder="456 Elm Street, San Francisco, CA 94103" oninput="updateInvoice()"></textarea>
+
+        <label class="block mb-2">Tax %:</label>
+        <input type="number" id="tax-rate" class="w-full border p-2 rounded-md mb-4" value="10" oninput="updateInvoice()">
+
+        <label class="block mb-2">Notes:</label>
+        <textarea id="invoice-notes" class="w-full border p-2 rounded-md mb-4" placeholder="Thank you for your business! Payment is due within 15 days." oninput="updateInvoice()"></textarea>
+
+        <h3 class="text-lg font-semibold mt-6">Items</h3>
+        <table class="w-full border-collapse border border-gray-300 mt-4">
+            <thead>
+                <tr class="bg-gray-100">
+                    <th class="border px-4 py-2 text-left">Description</th>
+                    <th class="border px-4 py-2">Qty</th>
+                    <th class="border px-4 py-2">Unit Price</th>
+                    <th class="border px-4 py-2">Total</th>
+                    <th class="border px-4 py-2">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="invoice-items">
+            </tbody>
+        </table>
+
+        <button onclick="addItem()" class="mt-4 bg-green-600 text-white px-4 py-2 rounded-md shadow-md hover:bg-green-700">
+            ➕ Add Item
+        </button>
+    </div>
+
+    <!-- Invoice Preview -->
+    <div id="invoice" class="bg-white p-8 rounded-md shadow-md w-full max-w-4xl mt-6">
+        <div class="flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-blue-600">INVOICE</h1>
+            <div class="text-right">
+                <p><strong>BilloHQ</strong></p>
+                <p>123 Main Street</p>
+                <p>New York, NY 10001</p>
+                <p>support@billohq.com</p>
+            </div>
+        </div>
+
+        <p class="mt-4"><strong>Invoice #:</strong> 00123</p>
+        <p><strong>Date:</strong> <span id="invoice-date-preview">March 16, 2024</span></p>
+
+        <div class="mt-4">
+            <h3 class="font-semibold">Bill To:</h3>
+            <p id="client-name-preview"></p>
+            <p id="client-address-preview"></p>
+        </div>
+
+        <table class="w-full mt-6 border-collapse border border-gray-300">
+            <thead>
+                <tr class="bg-gray-100">
+                    <th class="border px-4 py-2 text-left">Description</th>
+                    <th class="border px-4 py-2">Qty</th>
+                    <th class="border px-4 py-2">Unit Price</th>
+                    <th class="border px-4 py-2">Total</th>
+                </tr>
+            </thead>
+            <tbody id="invoice-items-preview"></tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3" class="border px-4 py-2 text-right">Subtotal:</td>
+                    <td class="border px-4 py-2 text-center" id="subtotal">$0</td>
+                </tr>
+                <tr>
+                    <td colspan="3" class="border px-4 py-2 text-right">Tax:</td>
+                    <td class="border px-4 py-2 text-center" id="tax">$0</td>
+                </tr>
+                <tr>
+                    <td colspan="3" class="border px-4 py-2 font-bold text-right">Total:</td>
+                    <td class="border px-4 py-2 font-bold text-center text-blue-600" id="total">$0</td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <p class="mt-6 font-semibold">Notes:</p>
+        <p id="invoice-notes-preview"></p>
+    </div>
+
+    <script>
+        function updateInvoice() {
+            document.getElementById('client-name-preview').textContent = document.getElementById('client-name').value;
+            document.getElementById('client-address-preview').textContent = document.getElementById('client-address').value;
+            document.getElementById('invoice-notes-preview').textContent = document.getElementById('invoice-notes').value;
+            
+            let items = document.querySelectorAll("#invoice-items tr");
+            let previewBody = document.getElementById("invoice-items-preview");
+            previewBody.innerHTML = "";
+            let subtotal = 0;
+
+            items.forEach(row => {
+                let desc = row.querySelector("input[name='desc']").value;
+                let qty = parseFloat(row.querySelector("input[name='qty']").value) || 0;
+                let price = parseFloat(row.querySelector("input[name='price']").value) || 0;
+                let total = qty * price;
+                subtotal += total;
+
+                previewBody.innerHTML += `
+                    <tr>
+                        <td class="border px-4 py-2">${desc}</td>
+                        <td class="border px-4 py-2 text-center">${qty}</td>
+                        <td class="border px-4 py-2 text-center">$${price.toFixed(2)}</td>
+                        <td class="border px-4 py-2 text-center">$${total.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+
+            let taxRate = parseFloat(document.getElementById("tax-rate").value) || 0;
+            let tax = subtotal * (taxRate / 100);
+            let total = subtotal + tax;
+
+            document.getElementById("subtotal").textContent = `$${subtotal.toFixed(2)}`;
+            document.getElementById("tax").textContent = `$${tax.toFixed(2)}`;
+            document.getElementById("total").textContent = `$${total.toFixed(2)}`;
+        }
+
+        function addItem() {
+            let table = document.getElementById("invoice-items");
+            let row = document.createElement("tr");
+            row.innerHTML = `
+                <td class="border px-4 py-2"><input type="text" name="desc" class="w-full border p-2" oninput="updateInvoice()"></td>
+                <td class="border px-4 py-2"><input type="number" name="qty" class="w-full border p-2 text-center" oninput="updateInvoice()"></td>
+                <td class="border px-4 py-2"><input type="number" name="price" class="w-full border p-2 text-center" oninput="updateInvoice()"></td>
+                <td class="border px-4 py-2 text-center">$0</td>
+                <td class="border px-4 py-2"><button onclick="removeItem(this)" class="bg-red-500 text-white px-2 py-1 rounded">❌</button></td>
+            `;
+            table.appendChild(row);
+            updateInvoice();
+        }
+
+        function removeItem(button) {
+            button.closest("tr").remove();
+            updateInvoice();
+        }
+
+        function printInvoice() {
+            window.print();
+        }
+    </script>
+
+</body>
+</html>
